@@ -1,5 +1,6 @@
 import numpy as np
 import os
+import tempfile
 from tensorflow.keras.models import load_model
 from tensorflow.keras.preprocessing.image import load_img, img_to_array
 from flask import Flask, request, render_template, jsonify
@@ -7,14 +8,25 @@ from werkzeug.utils import secure_filename
 from dotenv import load_dotenv
 import google.generativeai as genai
 
+
 # Load environment variables from .env file in the same directory
 env_path = os.path.join(os.path.dirname(__file__), '.env')
 load_dotenv(dotenv_path=env_path)
 
+# Add this after imports, before app = Flask(__name__)
+_model = None
+
+def get_model():
+    global _model
+    if _model is None:
+        model_path = os.path.join(os.path.dirname(__file__), '..', 'skindisease.h5')
+        _model = load_model(model_path)
+    return _model
+
 app = Flask(__name__)
 
 # Load model
-model = load_model("skindisease.h5")
+# model = load_model("skindisease.h5")
 
 # Class names
 CLASS_NAMES = ['Acne', 'Melanoma', 'Peeling skin', 'Ring worm', 'Vitiligo']
@@ -64,10 +76,12 @@ def predict():
                                prediction_text="⚠ No image uploaded.",
                                top3=None, all_probs=None, disease_info=None)
 
-    f = request.files['image']
-    basepath = os.path.dirname(__file__)
-    filepath = os.path.join(basepath, secure_filename(f.filename))
-    f.save(filepath)
+       f = request.files['image']
+    
+    # Use tempfile for serverless compatibility
+    with tempfile.NamedTemporaryFile(delete=False, suffix='.jpg') as tmp_file:
+        filepath = tmp_file.name
+        f.save(filepath)
 
     try:
         # Load + preprocess
@@ -75,6 +89,7 @@ def predict():
         x = img_to_array(img)
         x = np.expand_dims(x, axis=0)
 
+        model = get_model()
         raw_preds = model.predict(x, verbose=0)[0]
     finally:
         # Clean up uploaded file
@@ -290,5 +305,4 @@ Keep responses clear and under 200 words."""
 
 
 if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 5000))
-    app.run(host='0.0.0.0', port=port, debug=False)
+    app.run(debug=True)

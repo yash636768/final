@@ -1,0 +1,21 @@
+.env
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+ENV/
+tfenv/
+*.jpg
+*.jpeg
+*.png
+*.webp
+*.ipynb
+*.pdf
+
+.vercel
+
+# Allow skindisease.h5 - it's needed for the app
+!skindisease.h5
